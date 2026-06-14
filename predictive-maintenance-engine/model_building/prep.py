@@ -1,19 +1,32 @@
 import pandas as pd
 import os
-from datasets import load_dataset
 from sklearn.model_selection import train_test_split
 
-# Ensure data directory structure exists
-os.makedirs("data/train", exist_ok=True)
-os.makedirs("data/test", exist_ok=True)
+# --- DYNAMIC PATH RESOLUTION ---
+# Finds the directory where this prep.py script is executing
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Load the dataset from Hugging Face
-# Using HF_TOKEN from environment for potential private datasets
-hf_token = os.getenv("HF_TOKEN")
-dataset = load_dataset("HF-Sum/predictive-maintenance-engine-data", token=hf_token)
+# Resolves the 'data' directory relative to the script location (one level up)
+data_dir = os.path.abspath(os.path.join(script_dir, "..", "data"))
 
-# Convert the 'train' split of the dataset to a pandas DataFrame
-df_engine = dataset['train'].to_pandas()
+# Create output subdirectories dynamically
+train_dir = os.path.join(data_dir, "train")
+test_dir = os.path.join(data_dir, "test")
+os.makedirs(train_dir, exist_ok=True)
+os.makedirs(test_dir, exist_ok=True)
+
+# --- LOCAL DATA LOADING ---
+# Find your raw data file inside the local repository layout.
+# Assuming you have a CSV data file committed or copied into your data folder:
+# If your raw file has a specific name (e.g., 'engine_data.csv'), change it here.
+raw_data_path = os.path.join(data_dir, "predictive_maintenance.csv") 
+
+# FALLBACK CHECK: If your raw file sits directly inside the train/ folder as 'train_data.csv' before processing
+if not os.path.exists(raw_data_path):
+    raw_data_path = os.path.join(train_dir, "train_data.csv")
+
+print(f"Loading raw dataset from local path: {raw_data_path}")
+df_engine = pd.read_csv(raw_data_path)
 
 # Standardize column names
 df_engine.columns = (
@@ -43,8 +56,12 @@ train_df["engine_condition"] = y_train
 test_df = X_test.copy()
 test_df["engine_condition"] = y_test
 
-# Save processed data locally
-train_df.to_csv("data/train/train_data.csv", index=False)
-test_df.to_csv("data/test/test_data.csv", index=False)
+# Save processed data locally using dynamic paths
+train_output_path = os.path.join(train_dir, "train_data.csv")
+test_output_path = os.path.join(test_dir, "test_data.csv")
 
-print("Data preparation complete. Train and test datasets saved to 'data/' directory.")
+train_df.to_csv(train_output_path, index=False)
+test_df.to_csv(test_output_path, index=False)
+
+print(f"Data preparation complete. Train dataset saved to: {train_output_path}")
+print(f"Test dataset saved to: {test_output_path}")
