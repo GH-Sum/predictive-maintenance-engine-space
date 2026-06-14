@@ -10,10 +10,21 @@ from sklearn.metrics import (
     roc_auc_score
 )
 
-# Ensure model saving directory exists
-os.makedirs("/content/model_building", exist_ok=True)
+# --- DYNAMIC PATH RESOLUTION ---
+# Finds the directory where this train.py script is executing
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Define evaluation function (copied from notebook for self-containment)
+# Resolves the 'data' directory relative to the script location (one level up)
+data_dir = os.path.abspath(os.path.join(script_dir, "..", "data"))
+
+# Target model directory matches where the script lives
+model_dir = script_dir
+
+# Ensure model saving directory exists
+os.makedirs(model_dir, exist_ok=True)
+
+
+# Define evaluation function
 def evaluate_model(model, X_test, y_test):
     y_pred = model.predict(X_test)
     results = {
@@ -25,9 +36,12 @@ def evaluate_model(model, X_test, y_test):
     }
     return results
 
-# Load preprocessed data
-train_df = pd.read_csv("data/train/train_data.csv")
-test_df = pd.read_csv("data/test/test_data.csv")
+# Load preprocessed data using the dynamically resolved data paths
+train_path = os.path.join(data_dir, "train", "train_data.csv")
+test_path = os.path.join(data_dir, "test", "test_data.csv")
+
+train_df = pd.read_csv(train_path)
+test_df = pd.read_csv(test_path)
 
 # Separate features and target
 X_train = train_df.drop("engine_condition", axis=1)
@@ -36,8 +50,6 @@ X_test = test_df.drop("engine_condition", axis=1)
 y_test = test_df["engine_condition"]
 
 # Define the XGBoost model with best parameters found in EDA
-# These parameters were identified as {'learning_rate': 0.01, 'max_depth': 3, 'n_estimators': 100}
-# in the previous GridSearch step.
 xgb_best = XGBClassifier(
     random_state=42,
     eval_metric='logloss',
@@ -55,6 +67,7 @@ xgb_results = evaluate_model(xgb_best, X_test, y_test)
 print("XGBoost Model Training and Evaluation Complete.")
 print("Evaluation Results:", xgb_results)
 
-# Save the best model locally
-joblib.dump(xgb_best, "/content/model_building/best_model.joblib")
-print("Trained XGBoost model saved to /content/model_building/best_model.joblib")
+# Save the best model locally using the dynamic path
+model_output_path = os.path.join(model_dir, "best_model.joblib")
+joblib.dump(xgb_best, model_output_path)
+print(f"Trained XGBoost model saved to {model_output_path}")
